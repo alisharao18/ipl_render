@@ -1,32 +1,58 @@
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, flash
 import psycopg2
 import os
 
 app = Flask(__name__)
-
-DATABASE_URL = os.getenv("DATABASE_URL")
+app.secret_key = "supersecretkey"  # needed for flash messages
 
 def get_db_connection():
-    conn = psycopg2.connect(DATABASE_URL)
+    conn = psycopg2.connect(
+        host=os.environ.get("DB_HOST"),
+        database=os.environ.get("DB_NAME"),
+        user=os.environ.get("DB_USER"),
+        password=os.environ.get("DB_PASS"),
+        port=os.environ.get("DB_PORT", 5432)
+    )
     return conn
 
 @app.route("/", methods=["GET", "POST"])
 def home():
-    student = None
+    player = None
 
     if request.method == "POST":
         name = request.form["name"]
+        new_price = request.form.get("new_price")
 
         conn = get_db_connection()
         cur = conn.cursor()
 
-        cur.execute("SELECT * FROM students WHERE name=%s", (name,))
-        student = cur.fetchone()
+        # Fetch player details
+        cur.execute("SELECT id, name, team, role, country, auction_price FROM players WHERE name=%s", (name,))
+        player = cur.fetchone()
+
+        if not player:
+            flash("Player not found!", "error")
+        elif new_price:
+            try:
+                new_price = float(new_price)
+                current_price = float(player[5])
+                if new_price > current_price:
+                    # Update auction price
+                    cur.execute("UPDATE players SET auction_price=%s WHERE id=%s", (new_price, player[0]))
+                    conn.commit()
+                    flash(f"Auction price updated to {new_price}", "success")
+                    # Fetch updated player
+                    cur.execute("SELECT id, name, team, role, country, auction_price FROM players WHERE name=%s", (name,))
+                    player = cur.fetchone()
+                else:
+                    flash(f"New price must be higher than current price ({current_price})", "error")
+            except ValueError:
+                flash("Enter a valid number for price", "error")
 
         cur.close()
         conn.close()
 
-    return render_template("app.html", student=student)
+    return render_template("app.html", player=player)
 
 if __name__ == "__main__":
     app.run()
