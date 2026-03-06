@@ -4,7 +4,7 @@
     <title>Auction App</title>
 </head>
 <body>
-    <h1>Player Auction</h1>
+    <h1>IPL Player Auction</h1>
 
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
@@ -16,25 +16,23 @@
       {% endif %}
     {% endwith %}
 
+    <!-- Search / Update Form -->
     <form method="POST">
         <label>Enter Player Name:</label>
-        <input type="text" name="player_name" required>
-        <button type="submit">Search</button>
-    </form>
-
-    {% if player %}
-        <h2>Details for {{ player[1] }}</h2>
-        <p>Team: {{ player[2] }}</p>
-        <p>Role: {{ player[3] }}</p>
-        <p>Country: {{ player[4] }}</p>
-        <p>Current Auction Price: {{ player[5] }}</p>
-
-        <form method="POST">
-            <input type="hidden" name="player_name" value="{{ player[1] }}">
+        <input type="text" name="name" required>
+        <br><br>
+        {% if player %}
+            <h2>Details for {{ player[1] }}</h2>
+            <p>Team: {{ player[2] }}</p>
+            <p>Role: {{ player[3] }}</p>
+            <p>Country: {{ player[4] }}</p>
+            <p>Current Auction Price: {{ player[5] }}</p>
+            <br>
             <label>Enter New Auction Price:</label>
-            <input type="number" step="0.01" name="new_price" required>
-            <button type="submit">Update Price</button>
-        </form>
-    {% endif %}
+            <input type="number" step="0.01" name="new_price">
+            <br><br>
+        {% endif %}
+        <button type="submit">{% if player %}Update Price{% else %}Search{% endif %}</button>
+    </form>
 </body>
 </html>
