@@ -1,72 +1,81 @@
-from flask import Flask, render_template, request, redirect
+from flask import Flask, render_template, request, flash
 import psycopg2
 import os
 
 app = Flask(__name__)
+app.secret_key = "supersecretkey"  # needed for flash messages
 
-# Database connection
-DATABASE_URL = os.environ.get("DATABASE_URL")
+def get_db_connection():
+    try:
+        conn = psycopg2.connect(
+            host=os.environ.get("DB_HOST"),
+            database=os.environ.get("DB_NAME"),
+            user=os.environ.get("DB_USER"),
+            password=os.environ.get("DB_PASS"),
+            port=os.environ.get("DB_PORT", 5432)
+        )
+        return conn
+    except Exception as e:
+        print("Database connection failed:", e)
+        return None
 
-def get_conn():
-    return psycopg2.connect(DATABASE_URL)
-
-
-# HOME PAGE (LOGIN + SHOW PLAYERS)
 @app.route("/", methods=["GET", "POST"])
 def home():
-
-    role = None
-    players = []
+    player = None
 
     if request.method == "POST":
-        role = request.form.get("role")
+        name = request.form.get("name")
+        new_price = request.form.get("new_price")
 
-    conn = get_conn()
-    cur = conn.cursor()
+        if not name:
+            flash("Please enter a player name.", "error")
+        else:
+            conn = get_db_connection()
+            if conn is None:
+                flash("Cannot connect to database.", "error")
+            else:
+                try:
+                    cur = conn.cursor()
+                    # Fetch player details
+                    cur.execute(
+                        "SELECT id, name, team, role, country, auction_price FROM players WHERE name=%s",
+                        (name,)
+                    )
+                    player = cur.fetchone()
 
-    cur.execute("SELECT * FROM players ORDER BY id")
-    players = cur.fetchall()
+                    if not player:
+                        flash("Player not found!", "error")
+                    elif new_price:
+                        try:
+                            new_price = float(new_price)
+                            current_price = float(player[5])
+                            if new_price > current_price:
+                                # Update auction price
+                                cur.execute(
+                                    "UPDATE players SET auction_price=%s WHERE id=%s",
+                                    (new_price, player[0])
+                                )
+                                conn.commit()
+                                flash(f"Auction price updated to {new_price}", "success")
+                                # Fetch updated player
+                                cur.execute(
+                                    "SELECT id, name, team, role, country, auction_price FROM players WHERE name=%s",
+                                    (name,)
+                                )
+                                player = cur.fetchone()
+                            else:
+                                flash(f"New price must be higher than current price ({current_price})", "error")
+                        except ValueError:
+                            flash("Enter a valid number for price", "error")
 
-    conn.close()
+                    cur.close()
+                    conn.close()
+                except Exception as e:
+                    flash(f"Database query failed: {e}", "error")
+                    if conn:
+                        conn.close()
 
-    return render_template("app.html", role=role, players=players)
+    return render_template("app.html", player=player)
 
-
-# BIDDING ROUTE
-@app.route("/bid", methods=["POST"])
-def bid():
-
-    player_id = request.form.get("player_id")
-    bid_price = request.form.get("bid_price")
-
-    conn = get_conn()
-    cur = conn.cursor()
-
-    # get current price
-    cur.execute(
-        "SELECT auction_price FROM players WHERE id=%s",
-        (player_id,)
-    )
-
-    result = cur.fetchone()
-
-    if result:
-        current_price = result[0]
-
-        # allow bid only if higher
-        if int(bid_price) > current_price:
-            cur.execute(
-                "UPDATE players SET auction_price=%s WHERE id=%s",
-                (bid_price, player_id)
-            )
-            conn.commit()
-
-    conn.close()
-
-    return redirect("/")
-
-
-# RUN APP (Render needs this)
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 10000))
-    app.run(host="0.0.0.0", port=port)
+    app.run()
