@@ -1,107 +1,38 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>IPL Auction</title>
+    <title>IPL Auction</title>
 </head>
-
 <body>
+    <h1>IPL Player Auction</h1>
 
-<h1>IPL Player Auction</h1>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <ul>
+          {% for category, message in messages %}
+            <li style="color: {% if category=='error' %}red{% else %}green{% endif %};">{{ message }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    {% endwith %}
 
-{% if not role %}
-
-<h2>Login</h2>
-
-<form method="POST">
-
-<select name="role">
-
-<option value="admin">Admin</option>
-<option value="client">Client</option>
-
-</select>
-
-<button type="submit">Login</button>
-
-</form>
-
-{% endif %}
-
-
-{% if role == "admin" %}
-
-<h2>Admin Dashboard</h2>
-
-<table border="1">
-
-<tr>
-<th>Name</th>
-<th>Team</th>
-<th>Role</th>
-<th>Strike Rate</th>
-<th>Current Price</th>
-</tr>
-
-{% for p in players %}
-
-<tr>
-<td>{{p[1]}}</td>
-<td>{{p[2]}}</td>
-<td>{{p[3]}}</td>
-<td>{{p[4]}}</td>
-<td>{{p[6]}}</td>
-</tr>
-
-{% endfor %}
-
-</table>
-
-{% endif %}
-
-
-
-{% if role == "client" %}
-
-<h2>Place Bid</h2>
-
-<table border="1">
-
-<tr>
-<th>Name</th>
-<th>Team</th>
-<th>Current Price</th>
-<th>Bid</th>
-</tr>
-
-{% for p in players %}
-
-<tr>
-
-<td>{{p[1]}}</td>
-<td>{{p[2]}}</td>
-<td>{{p[6]}}</td>
-
-<td>
-
-<form action="/bid" method="POST">
-
-<input type="hidden" name="player_id" value="{{p[0]}}">
-
-<input type="number" name="bid_price" required>
-
-<button type="submit">Bid</button>
-
-</form>
-
-</td>
-
-</tr>
-
-{% endfor %}
-
-</table>
-
-{% endif %}
-
+    <form method="POST">
+        <label>Enter Player Name:</label>
+        <input type="text" name="name" required>
+        <br><br>
+        {% if player %}
+            <h2>Details for {{ player[1] }}</h2>
+            <p>Team: {{ player[2] }}</p>
+            <p>Role: {{ player[3] }}</p>
+            <p>Country: {{ player[4] }}</p>
+            <p>Current Auction Price: {{ player[5] }}</p>
+            <br>
+            <label>Enter New Auction Price:</label>
+            <input type="number" step="0.01" name="new_price">
+            <br><br>
+        {% endif %}
+        <button type="submit">{% if player %}Update Price{% else %}Search{% endif %}</button>
+    </form>
 </body>
 </html>
+
